@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        @import url("https://webglfundamentals.org/webgl/resources/webgl-tutorials.css");
+
+        body {
+            margin: 0;
+        }
+
+        canvas {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+
+        #ui {
+            width: 200px;
+        }
+    </style>
+
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+
+    <div id="uiContainer">
+        <div id="ui">
+            <div id="cameraAngle"></div>
+        </div>
+    </div>
+
+    <script id="vertex-shader-2d" type="x-shader/x-vertex">
+        attribute vec4 a_position;
+        // attribute vec4 a_color;
+        attribute vec3 a_normal;
+        
+        uniform mat4 u_matrix;
+
+        // pass color to fragment shader
+        // varying vec4 v_color;
+        varying vec3 v_normal;
+        
+        void main() {
+            // Multiply the position by the matrix.
+            gl_Position = u_matrix * a_position;
+
+            // Pass the color to the fragment shader.
+            // v_color = a_color;
+
+            // 将法向量传到片段着色器
+            v_normal = a_normal;
+        }
+    </script>
+    <script id="fragment-shader-2d" type="x-shader/x-fragment">
+        precision mediump float;
+        
+        // varying vec4 v_color;
+        varying vec3 v_normal;
+
+        uniform vec3 u_reverseLightDirection;
+        uniform vec4 u_color;
+        
+        void main() {
+            // 由于 v_normal 是插值出来的，和有可能不是单位向量，
+            // 可以用 normalize 将其单位化。
+            vec3 normal = normalize(v_normal);
+          
+            float light = dot(normal, u_reverseLightDirection);
+
+            gl_FragColor = u_color;
+
+            // 将颜色部分（不包括 alpha）和 光照相乘
+            gl_FragColor.rgb *= light;
+        }
+    </script>
+
+    </script>
+    <script src="https://webglfundamentals.org/webgl/resources/jquery-1.7.1.min.js"></script>
+    <script src="https://webglfundamentals.org/webgl/resources/jquery-ui-1.8.16.custom.min.js"></script>
+    <script src="https://webglfundamentals.org/webgl/resources/jquery.mousecapture.js"></script>
+    <script src="https://webglfundamentals.org/webgl/resources/jquery.gman.ui.js"></script>
+    <script src="https://webglfundamentals.org/webgl/resources/jquery-gman-circle.js"></script>
+
+    <script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
+    <script src="https://webglfundamentals.org/webgl/resources/webgl-lessons-ui.js"></script>
+    <script src="https://webglfundamentals.org/webgl/resources/m4.js"></script>
+
+    <script>
+        // https://webglfundamentals.org/webgl/lessons/zh_cn/webgl-fundamentals.html
+
+        // Fill the buffer with the values that define a letter 'F'.
+        // Fill the buffer with the values that define a letter 'F'.
+        function setGeometry(gl) {
+            var positions = new Float32Array([
+                // left column front
+                0, 0, 0,
+                0, 150, 0,
+                30, 0, 0,
+                0, 150, 0,
+                30, 150, 0,
+                30, 0, 0,
+
+                // top rung front
+                30, 0, 0,
+                30, 30, 0,
+                100, 0, 0,
+                30, 30, 0,
+                100, 30, 0,
+                100, 0, 0,
+
+                // middle rung front
+                30, 60, 0,
+                30, 90, 0,
+                67, 60, 0,
+                30, 90, 0,
+                67, 90, 0,
+                67, 60, 0,
+
+                // left column back
+                0, 0, 30,
+                30, 0, 30,
+                0, 150, 30,
+                0, 150, 30,
+                30, 0, 30,
+                30, 150, 30,
+
+                // top rung back
+                30, 0, 30,
+                100, 0, 30,
+                30, 30, 30,
+                30, 30, 30,
+                100, 0, 30,
+                100, 30, 30,
+
+                // middle rung back
+                30, 60, 30,
+                67, 60, 30,
+                30, 90, 30,
+                30, 90, 30,
+                67, 60, 30,
+                67, 90, 30,
+
+                // top
+                0, 0, 0,
+                100, 0, 0,
+                100, 0, 30,
+                0, 0, 0,
+                100, 0, 30,
+                0, 0, 30,
+
+                // top rung right
+                100, 0, 0,
+                100, 30, 0,
+                100, 30, 30,
+                100, 0, 0,
+                100, 30, 30,
+                100, 0, 30,
+
+                // under top rung
+                30, 30, 0,
+                30, 30, 30,
+                100, 30, 30,
+                30, 30, 0,
+                100, 30, 30,
+                100, 30, 0,
+
+                // between top rung and middle
+                30, 30, 0,
+                30, 60, 30,
+                30, 30, 30,
+                30, 30, 0,
+                30, 60, 0,
+                30, 60, 30,
+
+                // top of middle rung
+                30, 60, 0,
+                67, 60, 30,
+                30, 60, 30,
+                30, 60, 0,
+                67, 60, 0,
+                67, 60, 30,
+
+                // right of middle rung
+                67, 60, 0,
+                67, 90, 30,
+                67, 60, 30,
+                67, 60, 0,
+                67, 90, 0,
+                67, 90, 30,
+
+                // bottom of middle rung.
+                30, 90, 0,
+                30, 90, 30,
+                67, 90, 30,
+                30, 90, 0,
+                67, 90, 30,
+                67, 90, 0,
+
+                // right of bottom
+                30, 90, 0,
+                30, 150, 30,
+                30, 90, 30,
+                30, 90, 0,
+                30, 150, 0,
+                30, 150, 30,
+
+                // bottom
+                0, 150, 0,
+                0, 150, 30,
+                30, 150, 30,
+                0, 150, 0,
+                30, 150, 30,
+                30, 150, 0,
+
+                // left side
+                0, 0, 0,
+                0, 0, 30,
+                0, 150, 30,
+                0, 0, 0,
+                0, 150, 30,
+                0, 150, 0]);
+
+            // Center the F around the origin and Flip it around. We do this because
+            // we're in 3D now with and +Y is up where as before when we started with 2D
+            // we had +Y as down.
+
+            // We could do by changing all the values above but I'm lazy.
+            // We could also do it with a matrix at draw time but you should
+            // never do stuff at draw time if you can do it at init time.
+            var matrix = m4.xRotation(Math.PI);
+            matrix = m4.translate(matrix, -50, -75, -15);
+
+            for (var ii = 0; ii < positions.length; ii += 3) {
+                var vector = m4.transformPoint(matrix, [positions[ii + 0], positions[ii + 1], positions[ii + 2], 1]);
+                positions[ii + 0] = vector[0];
+                positions[ii + 1] = vector[1];
+                positions[ii + 2] = vector[2];
+            }
+
+            gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+        }
+
+        function setNormals(gl) {
+            var normals = new Float32Array([
+                // left column front
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+
+                // top rung front
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+
+                // middle rung front
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+                0, 0, 1,
+
+                // left column back
+                0, 0, -1,
+                0, 0, -1,
+                0, 0, -1,
+                0, 0, -1,
+                0, 0, -1,
+                0, 0, -1,
+
+                // top rung back
+                0, 0, -1,
+                0, 0, -1,
+                0, 0, -1,
+                0, 0, -1,
+                0, 0, -1,
+                0, 0, -1,
+
+                // middle rung back
+                0, 0, -1,
+                0, 0, -1,
+                0, 0, -1,
+                0, 0, -1,
+                0, 0, -1,
+                0, 0, -1,
+
+                // top
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0,
+
+                // top rung right
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+
+                // under top rung
+                0, -1, 0,
+                0, -1, 0,
+                0, -1, 0,
+                0, -1, 0,
+                0, -1, 0,
+                0, -1, 0,
+
+                // between top rung and middle
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+
+                // top of middle rung
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0,
+                0, 1, 0,
+
+                // right of middle rung
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+
+                // bottom of middle rung.
+                0, -1, 0,
+                0, -1, 0,
+                0, -1, 0,
+                0, -1, 0,
+                0, -1, 0,
+                0, -1, 0,
+
+                // right of bottom
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+                1, 0, 0,
+
+                // bottom
+                0, -1, 0,
+                0, -1, 0,
+                0, -1, 0,
+                0, -1, 0,
+                0, -1, 0,
+                0, -1, 0,
+
+                // left side
+                -1, 0, 0,
+                -1, 0, 0,
+                -1, 0, 0,
+                -1, 0, 0,
+                -1, 0, 0,
+                -1, 0, 0]);
+            gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
+        }
+        // Fill the buffer with colors for the 'F'.
+        function setColors(gl) {
+            gl.bufferData(
+                gl.ARRAY_BUFFER,
+                new Uint8Array([
+                    // left column front
+                    200, 70, 120,
+                    200, 70, 120,
+                    200, 70, 120,
+                    200, 70, 120,
+                    200, 70, 120,
+                    200, 70, 120,
+
+                    // top rung front
+                    200, 70, 120,
+                    200, 70, 120,
+                    200, 70, 120,
+                    200, 70, 120,
+                    200, 70, 120,
+                    200, 70, 120,
+
+                    // middle rung front
+                    200, 70, 120,
+                    200, 70, 120,
+                    200, 70, 120,
+                    200, 70, 120,
+                    200, 70, 120,
+                    200, 70, 120,
+
+                    // left column back
+                    80, 70, 200,
+                    80, 70, 200,
+                    80, 70, 200,
+                    80, 70, 200,
+                    80, 70, 200,
+                    80, 70, 200,
+
+                    // top rung back
+                    80, 70, 200,
+                    80, 70, 200,
+                    80, 70, 200,
+                    80, 70, 200,
+                    80, 70, 200,
+                    80, 70, 200,
+
+                    // middle rung back
+                    80, 70, 200,
+                    80, 70, 200,
+                    80, 70, 200,
+                    80, 70, 200,
+                    80, 70, 200,
+                    80, 70, 200,
+
+                    // top
+                    70, 200, 210,
+                    70, 200, 210,
+                    70, 200, 210,
+                    70, 200, 210,
+                    70, 200, 210,
+                    70, 200, 210,
+
+                    // top rung right
+                    200, 200, 70,
+                    200, 200, 70,
+                    200, 200, 70,
+                    200, 200, 70,
+                    200, 200, 70,
+                    200, 200, 70,
+
+                    // under top rung
+                    210, 100, 70,
+                    210, 100, 70,
+                    210, 100, 70,
+                    210, 100, 70,
+                    210, 100, 70,
+                    210, 100, 70,
+
+                    // between top rung and middle
+                    210, 160, 70,
+                    210, 160, 70,
+                    210, 160, 70,
+                    210, 160, 70,
+                    210, 160, 70,
+                    210, 160, 70,
+
+                    // top of middle rung
+                    70, 180, 210,
+                    70, 180, 210,
+                    70, 180, 210,
+                    70, 180, 210,
+                    70, 180, 210,
+                    70, 180, 210,
+
+                    // right of middle rung
+                    100, 70, 210,
+                    100, 70, 210,
+                    100, 70, 210,
+                    100, 70, 210,
+                    100, 70, 210,
+                    100, 70, 210,
+
+                    // bottom of middle rung.
+                    76, 210, 100,
+                    76, 210, 100,
+                    76, 210, 100,
+                    76, 210, 100,
+                    76, 210, 100,
+                    76, 210, 100,
+
+                    // right of bottom
+                    140, 210, 80,
+                    140, 210, 80,
+                    140, 210, 80,
+                    140, 210, 80,
+                    140, 210, 80,
+                    140, 210, 80,
+
+                    // bottom
+                    90, 130, 110,
+                    90, 130, 110,
+                    90, 130, 110,
+                    90, 130, 110,
+                    90, 130, 110,
+                    90, 130, 110,
+
+                    // left side
+                    160, 160, 220,
+                    160, 160, 220,
+                    160, 160, 220,
+                    160, 160, 220,
+                    160, 160, 220,
+                    160, 160, 220]),
+                gl.STATIC_DRAW);
+        }
+
+        // 两点相减，获取其方向向量
+        function subtractVectors(a, b) {
+            return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+        }
+
+        function normalize(v) {
+            var length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+            // make sure we don't divide by 0.
+            if (length > 0.00001) {
+                return [v[0] / length, v[1] / length, v[2] / length];
+            } else {
+                return [0, 0, 0];
+            }
+        }
+
+        // 叉乘两个向量，可获得一个垂直于这两个向量的新向量
+        function cross(a, b) {
+            return [a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0]];
+        }
+
+        function radToDeg(r) {
+            return r * 180 / Math.PI;
+        }
+
+        function degToRad(d) {
+            return d * Math.PI / 180;
+        }
+
+        function makeZToWMatrix(fudgeFactor) {
+            return [
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, fudgeFactor,
+                0, 0, 0, 1,
+            ];
+        }
+
+        function main() {
+            var canvas = document.querySelector("#canvas");
+            var gl = canvas.getContext("webgl");
+            if (!gl) {
+                // 你不能使用WebGL！
+                console.log('You can not use WebGL');
+                return;
+            }
+
+            // setup GLSL program
+            var program = webglUtils.createProgramFromScripts(gl, ["vertex-shader-2d", "fragment-shader-2d"]);
+
+            // look up where the vertex data needs to go.
+            var positionLocation = gl.getAttribLocation(program, "a_position");
+            // var colorLocation = gl.getAttribLocation(program, "a_color")
+            var normalLocation = gl.getAttribLocation(program, 'a_normal');
+
+            // lookup uniforms
+            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
+            var colorLocation = gl.getUniformLocation(program, "u_color");
+            var reverseLightDirectionLocation =
+                gl.getUniformLocation(program, "u_reverseLightDirection");
+
+            // Create a buffer to put positions in
+            var positionBuffer = gl.createBuffer();
+            // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            // Put geometry data into buffer
+            setGeometry(gl);
+
+            // // Create a buffer to put colors in
+            // var colorBuffer = gl.createBuffer();
+            // // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = colorBuffer)
+            // gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+            // // Put geometry data into buffer
+            // setColors(gl);
+
+            // 创建缓冲存储法向量
+            var normalBuffer = gl.createBuffer();
+            // 绑定到 ARRAY_BUFFER (可以看作 ARRAY_BUFFER = normalBuffer)
+            gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+            // 将法向量存入缓冲
+            setNormals(gl);
+
+            var fRotationRadians = degToRad(0);
+            var fieldOfViewRadians = degToRad(60);
+
+            drawScene();
+
+            // Setup a ui.
+            webglLessonsUI.setupSlider("#cameraAngle", { value: radToDeg(fRotationRadians), slide: updateCameraAngle, min: -360, max: 360 });
+            function updateCameraAngle(event, ui) {
+                fRotationRadians = degToRad(ui.value);
+                drawScene();
+            }
+
+            // Draw the scene.
+            function drawScene() {
+                webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+
+                // Tell WebGL how to convert from clip space to pixels
+                gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+                // Clear the canvas.
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+                // Turn on culling. By default backfacing triangles
+                // will be culled.
+                gl.enable(gl.CULL_FACE);
+
+                // Enable the depth buffer
+                gl.enable(gl.DEPTH_TEST);
+
+                // Tell it to use our program (pair of shaders)
+                gl.useProgram(program);
+
+                // Turn on the attribute
+                gl.enableVertexAttribArray(positionLocation);
+
+                // Bind the position buffer.
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+                // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+                var size = 3;          // 2 components per iteration
+                var type = gl.FLOAT;   // the data is 32bit floats
+                var normalize = false; // don't normalize the data
+                var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+                var offset = 0;        // start at the beginning of the buffer
+                gl.vertexAttribPointer(
+                    positionLocation, size, type, normalize, stride, offset);
+
+                // // Turn on the color attribute
+                // gl.enableVertexAttribArray(colorLocation);
+
+                // // Bind the color buffer.
+                // gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+
+                // // Tell the attribute how to get data out of colorBuffer (ARRAY_BUFFER)
+                // var size = 3;                 // 3 components per iteration
+                // var type = gl.UNSIGNED_BYTE;  // the data is 8bit unsigned values
+                // var normalize = true;         // normalize the data (convert from 0-255 to 0-1)
+                // var stride = 0;               // 0 = move forward size * sizeof(type) each iteration to get the next position
+                // var offset = 0;               // start at the beginning of the buffer
+                // gl.vertexAttribPointer(
+                //     colorLocation, size, type, normalize, stride, offset);
+
+                // 启用法向量属性
+                gl.enableVertexAttribArray(normalLocation);
+
+                // 绑定法向量缓冲
+                gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+
+                // 告诉法向量属性怎么从 normalBuffer (ARRAY_BUFFER) 中读取值
+                var size = 3;          // 每次迭代使用3个单位的数据
+                var type = gl.FLOAT;   // 单位数据类型是 32 位浮点型
+                var normalize = false; // 单位化 (从 0-255 转换到 0-1)
+                var stride = 0;        // 0 = 移动距离 * 单位距离长度sizeof(type)  每次迭代跳多少距离到下一个数据
+                var offset = 0;        // 从绑定缓冲的起始处开始
+                gl.vertexAttribPointer(
+                    normalLocation, size, type, normalize, stride, offset)
+
+                var numFs = 5;
+                var radius = 200;
+
+                // Compute the projection matrix
+                var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+                var zNear = 1;
+                var zFar = 2000;
+                var projectionMatrix = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
+
+                // Compute the position of the first F
+                var fPosition = [radius, 0, 0];
+
+                // Compute a matrix for the camera
+                var cameraMatrix = m4.yRotation(fRotationRadians);
+                cameraMatrix = m4.translate(cameraMatrix, 0, 0, radius * 1.5);
+
+                // Compute the camera's matrix
+                var camera = [100, 150, 200];
+                var target = [0, 35, 0];
+                var up = [0, 1, 0];
+                var cameraMatrix = m4.lookAt(camera, target, up);
+
+                // Make a view matrix from the camera matrix
+                var viewMatrix = m4.inverse(cameraMatrix);
+
+                // Compute a view projection matrix
+                var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
+
+                // Draw a F at the origin
+                var worldMatrix = m4.yRotation(fRotationRadians);
+
+                // Multiply the matrices.
+                var worldViewProjectionMatrix = m4.multiply(viewProjectionMatrix, worldMatrix);
+
+                // Set the matrix.
+                gl.uniformMatrix4fv(matrixLocation, false, worldViewProjectionMatrix);
+
+                // Set the color to use
+                gl.uniform4fv(colorLocation, [0.2, 1, 0.2, 1]); // green
+
+                // set the light direction.
+                gl.uniform3fv(reverseLightDirectionLocation, m4.normalize([0.5, 0.7, 1]));
+
+                // Draw the geometry.
+                var primitiveType = gl.TRIANGLES;
+                var offset = 0;
+                var count = 16 * 6;
+                gl.drawArrays(primitiveType, offset, count);
+            }
+        }
+
+        $(function () {
+            main();
+        })
+
+    </script>
+</body>
+
+</html>

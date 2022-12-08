@@ -40,7 +40,8 @@
         // attribute vec4 a_color;
         attribute vec3 a_normal;
         
-        uniform mat4 u_matrix;
+        uniform mat4 u_worldViewProjection;
+        uniform mat4 u_world;
 
         // pass color to fragment shader
         // varying vec4 v_color;
@@ -48,13 +49,10 @@
         
         void main() {
             // Multiply the position by the matrix.
-            gl_Position = u_matrix * a_position;
+            gl_Position = u_worldViewProjection * a_position;
 
-            // Pass the color to the fragment shader.
-            // v_color = a_color;
-
-            // 将法向量传到片段着色器
-            v_normal = a_normal;
+            // 重定向法向量并传递给片段着色器
+            v_normal = mat3(u_world) * a_normal;
         }
     </script>
     <script id="fragment-shader-2d" type="x-shader/x-fragment">
@@ -569,8 +567,11 @@
             var normalLocation = gl.getAttribLocation(program, 'a_normal');
 
             // lookup uniforms
-            var matrixLocation = gl.getUniformLocation(program, "u_matrix");
+            // 寻找全局变量
             var colorLocation = gl.getUniformLocation(program, "u_color");
+            var worldViewProjectionLocation =
+                gl.getUniformLocation(program, "u_worldViewProjection");
+            var worldLocation = gl.getUniformLocation(program, "u_world");
             var reverseLightDirectionLocation =
                 gl.getUniformLocation(program, "u_reverseLightDirection");
 
@@ -703,7 +704,8 @@
                 var worldViewProjectionMatrix = m4.multiply(viewProjectionMatrix, worldMatrix);
 
                 // Set the matrix.
-                gl.uniformMatrix4fv(matrixLocation, false, worldViewProjectionMatrix);
+                gl.uniformMatrix4fv(worldViewProjectionLocation, false, worldViewProjectionMatrix);
+                gl.uniformMatrix4fv(worldLocation, false, worldMatrix);
 
                 // Set the color to use
                 gl.uniform4fv(colorLocation, [0.2, 1, 0.2, 1]); // green
